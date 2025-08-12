@@ -168,13 +168,9 @@ startGameBtn.addEventListener('click', () => {
   startGame(croppedDataUrl);
 });
 
-// --- ゲーム処理部分 ---
-
 function startGame(faceDataUrl) {
-  // UIクリア
   mainArea.innerHTML = '';
 
-  // ゲームcanvas作成
   const gameCanvas = document.createElement('canvas');
   gameCanvas.width = 480;
   gameCanvas.height = 320;
@@ -190,6 +186,7 @@ function startGame(faceDataUrl) {
     width: 50,
     height: 50,
     vy: 0,
+    speedX: 5,
     onGround: false,
   };
 
@@ -229,10 +226,21 @@ function startGame(faceDataUrl) {
       player.onGround = true;
     }
 
+    // ジャンプ
     if(keys['Space'] && player.onGround){
       player.vy = -15;
       player.onGround = false;
     }
+
+    // 左右移動
+    if(keys['ArrowLeft']){
+      player.x -= player.speedX;
+    }
+    if(keys['ArrowRight']){
+      player.x += player.speedX;
+    }
+    // 画面外制限
+    player.x = Math.max(0, Math.min(player.x, gameCanvas.width - player.width));
 
     if(faceImg.complete){
       gctx.drawImage(faceImg, player.x, player.y, player.width, player.height);
