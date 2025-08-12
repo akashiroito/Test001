@@ -10,9 +10,8 @@ const cols = 3;
 let pieces = [];
 let pieceWidth, pieceHeight;
 let img = new Image();
-let emptyIndex = rows * cols -1;
-let isDragging = false;
-let dragIndex = null;
+let emptyIndex = rows * cols - 1;
+let selectedIndex = null; // 選択中ピースのindex
 
 function clearMessage() {
   message.textContent = '';
@@ -28,6 +27,7 @@ function initPieces() {
     pieces.push(i);
   }
   emptyIndex = pieces.length - 1;
+  selectedIndex = null;
 }
 
 function drawPuzzle() {
@@ -35,14 +35,30 @@ function drawPuzzle() {
   for(let i=0; i<pieces.length; i++) {
     let pieceNum = pieces[i];
     if(pieceNum === emptyIndex) continue; // 空ピースは描かない
-    let sx = (pieceNum % cols) * pieceWidth;
-    let sy = Math.floor(pieceNum / cols) * pieceHeight;
+
+    let sx = (pieceNum % cols) * imgPieceWidth;
+    let sy = Math.floor(pieceNum / cols) * imgPieceHeight;
     let dx = (i % cols) * pieceWidth;
     let dy = Math.floor(i / cols) * pieceHeight;
-    ctx.drawImage(img, sx, sy, pieceWidth, pieceHeight, dx, dy, pieceWidth, pieceHeight);
+
+    ctx.drawImage(img, sx, sy, imgPieceWidth, imgPieceHeight, dx, dy, pieceWidth, pieceHeight);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
     ctx.strokeRect(dx, dy, pieceWidth, pieceHeight);
+
+    if(i === selectedIndex) {
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(dx + 2, dy + 2, pieceWidth - 4, pieceHeight -4);
+    }
   }
 }
+
+// 画像の元ピースサイズ（元画像を分割する際の１ピースの幅・高さ）
+let imgPieceWidth, imgPieceHeight;
+
+// アップロード画像の表示位置・サイズ調整用
+let imgDrawX, imgDrawY, imgDrawWidth, imgDrawHeight;
 
 function canSwap(index) {
   const emptyRow = Math.floor(emptyIndex / cols);
@@ -58,13 +74,13 @@ function swapPieces(i1, i2) {
 }
 
 function shufflePuzzle() {
-  let n = pieces.length -1;
+  let n = pieces.length - 1;
   for(let i=n; i>0; i--) {
     let j = Math.floor(Math.random() * (i));
-    if(j === emptyIndex) j = i-1;
+    if(j === emptyIndex) j = i - 1;
     swapPieces(i, j);
   }
-  if(isSolved()) shufflePuzzle(); // 解けてたらもう一度シャッフル
+  if(isSolved()) shufflePuzzle();
   drawPuzzle();
   clearMessage();
 }
@@ -80,6 +96,7 @@ function getClickedPiece(x, y) {
   const rect = canvas.getBoundingClientRect();
   const clickX = x - rect.left;
   const clickY = y - rect.top;
+  if(clickX < 0 || clickX > canvas.width || clickY < 0 || clickY > canvas.height) return null;
   const col = Math.floor(clickX / pieceWidth);
   const row = Math.floor(clickY / pieceHeight);
   return row * cols + col;
@@ -88,11 +105,31 @@ function getClickedPiece(x, y) {
 canvas.addEventListener('click', (e) => {
   if(!img.src) return;
   const index = getClickedPiece(e.clientX, e.clientY);
-  if(canSwap(index)) {
-    swapPieces(index, emptyIndex);
-    emptyIndex = index;
+  if(index === null) return;
+
+  if(index === emptyIndex) {
+    // 空ピースクリック
+    if(selectedIndex !== null && canSwap(selectedIndex)) {
+      // 選択中ピースが空ピース隣接ならスワップ
+      swapPieces(selectedIndex, emptyIndex);
+      emptyIndex = selectedIndex;
+      selectedIndex = null;
+      drawPuzzle();
+      if(isSolved()) showMessage('完成！おめでとうございます！');
+    } else {
+      // 隣接してなければ無視
+      // メッセージは出さない
+    }
+  } else {
+    // 空ピース以外クリック
+    if(selectedIndex === index) {
+      // 同じピースなら選択解除
+      selectedIndex = null;
+    } else {
+      // 新しく選択
+      selectedIndex = index;
+    }
     drawPuzzle();
-    if(isSolved()) showMessage('完成！おめでとうございます！');
   }
 });
 
@@ -102,12 +139,38 @@ imageLoader.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (event) => {
     img.onload = () => {
-      // キャンバスサイズ調整（300x300固定で中央トリミング）
-      const size = 300;
-      canvas.width = size;
-      canvas.height = size;
-      pieceWidth = size / cols;
-      pieceHeight = size / rows;
+      // canvasサイズ固定300x300
+      const canvasSize = 300;
+      canvas.width = canvasSize;
+      canvas.height = canvasSize;
+
+      // 画像のアスペクト比を保持してcanvas内に最大表示
+      const imgW = img.width;
+      const imgH = img.height;
+      const imgRatio = imgW / imgH;
+      const canvasRatio = canvas.width / canvas.height;
+
+      if(imgRatio > canvasRatio) {
+        // 横長画像
+        imgDrawWidth = canvas.width;
+        imgDrawHeight = canvas.width / imgRatio;
+        imgDrawX = 0;
+        imgDrawY = (canvas.height - imgDrawHeight) / 2;
+      } else {
+        // 縦長画像または正方形
+        imgDrawHeight = canvas.height;
+        imgDrawWidth = canvas.height * imgRatio;
+        imgDrawY = 0;
+        imgDrawX = (canvas.width - imgDrawWidth) / 2;
+      }
+
+      pieceWidth = canvas.width / cols;
+      pieceHeight = canvas.height / rows;
+
+      // 元画像のピース幅高さ
+      imgPieceWidth = img.width / cols;
+      imgPieceHeight = img.height / rows;
+
       initPieces();
       drawPuzzle();
       clearMessage();
