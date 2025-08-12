@@ -3,21 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>画像パズル</title>
-<link rel="manifest" href="manifest.json" />
+<title>顔トリミング＋アクションゲーム</title>
 <style>
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: sans-serif;
     margin: 0; padding: 0;
-    background: #f0f0f0;
     display: flex; flex-direction: column; align-items: center;
+    background: #f0f0f0;
   }
   header {
-    background-color: #0078d4;
+    background: #0078d4;
     color: white;
     width: 100%;
     padding: 1em;
-    font-size: 1.5em;
+    font-size: 1.4em;
     text-align: center;
   }
   main {
@@ -25,47 +24,37 @@
     width: 320px;
     max-width: 95vw;
     background: white;
-    border-radius: 8px;
     padding: 1em;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    box-shadow: 0 0 5px #aaa;
   }
-  #puzzleCanvas {
-    background: #ccc;
+  #imageCanvas {
+    border: 1px solid #ccc;
     display: block;
     margin: 1em auto;
-    border-radius: 4px;
+    touch-action: none;
+    max-width: 100%;
   }
   button {
     background: #0078d4;
-    border: none;
     color: white;
-    padding: 0.6em 1em;
-    font-size: 1em;
+    border: none;
+    padding: 0.5em 1em;
+    margin: 0.5em;
     border-radius: 4px;
     cursor: pointer;
-  }
-  input[type=file] {
-    margin-top: 0.5em;
-    width: 100%;
-  }
-  #message {
-    text-align: center;
-    margin-top: 0.5em;
-    font-weight: bold;
   }
 </style>
 </head>
 <body>
-<header>画像パズル</header>
+<header>画像トリミングで顔を設定</header>
 <main>
-  <label for="imageLoader">パズルにする画像を選択</label>
   <input type="file" id="imageLoader" accept="image/*" />
-  <canvas id="puzzleCanvas" width="300" height="300"></canvas>
+  <canvas id="imageCanvas" width="300" height="300"></canvas>
   <div style="text-align:center;">
-    <button id="shuffleBtn">シャッフル</button>
-    <button id="resetBtn">リセット</button>
+    <button id="resetSelection">選択解除</button>
+    <button id="startGame" disabled>ゲーム開始</button>
   </div>
-  <div id="message"></div>
 </main>
 <script src="app.js"></script>
 </body>
