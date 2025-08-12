@@ -226,21 +226,34 @@ function startGame(faceDataUrl) {
       player.onGround = true;
     }
 
-    // ジャンプ
-    if(keys['Space'] && player.onGround){
-      player.vy = -15;
-      player.onGround = false;
-    }
-
-    // 左右移動
-    if(keys['ArrowLeft']){
-      player.x -= player.speedX;
-    }
-    if(keys['ArrowRight']){
-      player.x += player.speedX;
-    }
-    // 画面外制限
-    player.x = Math.max(0, Math.min(player.x, gameCanvas.width - player.width));
+  // ジャンプ
+  if(keys['Space'] && player.onGround){
+    player.vy = -15;
+    player.onGround = false;
+  }
+  
+  // 左右移動（A/Dキー）
+  if(keys['KeyA']){
+    player.x -= player.speedX;
+  }
+  if(keys['KeyD']){
+    player.x += player.speedX;
+  }
+  
+  // 画面端制限
+  player.x = Math.max(0, Math.min(player.x, gameCanvas.width - player.width));
+  
+      
+  
+      // 左右移動
+      if(keys['ArrowLeft']){
+        player.x -= player.speedX;
+      }
+      if(keys['ArrowRight']){
+        player.x += player.speedX;
+      }
+      // 画面外制限
+      player.x = Math.max(0, Math.min(player.x, gameCanvas.width - player.width));
 
     if(faceImg.complete){
       gctx.drawImage(faceImg, player.x, player.y, player.width, player.height);
