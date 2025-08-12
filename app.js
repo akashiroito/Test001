@@ -1,149 +1,113 @@
-const canvas = document.getElementById('puzzleCanvas');
-const ctx = canvas.getContext('2d');
 const imageLoader = document.getElementById('imageLoader');
-const shuffleBtn = document.getElementById('shuffleBtn');
-const resetBtn = document.getElementById('resetBtn');
-const message = document.getElementById('message');
+const canvas = document.getElementById('imageCanvas');
+const ctx = canvas.getContext('2d');
+const resetBtn = document.getElementById('resetSelection');
+const startGameBtn = document.getElementById('startGame');
 
-const rows = 3;
-const cols = 3;
-let pieces = [];
 let img = new Image();
+let imgLoaded = false;
 
-let imgPieceWidth, imgPieceHeight;
-let imgDrawX, imgDrawY, imgDrawWidth, imgDrawHeight;
+let startX, startY, endX, endY;
+let dragging = false;
+let selection = null;
 
-let selectedIndex = null;
-let emptyIndex = rows * cols - 1;
-
-function clearMessage() {
-  message.textContent = '';
-}
-
-function showMessage(text) {
-  message.textContent = text;
-}
-
-function initPieces() {
-  pieces = [];
-  for(let i=0; i<rows*cols; i++) {
-    pieces.push(i);
-  }
-  emptyIndex = pieces.length - 1;
-  selectedIndex = null;
-}
-
-function drawPuzzle() {
+function drawImageAndSelection() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for(let i=0; i<pieces.length; i++) {
-    let pieceNum = pieces[i];
-    if(pieceNum === emptyIndex) continue;
+  if(!imgLoaded) return;
 
-    let sx = (pieceNum % cols) * imgPieceWidth;
-    let sy = Math.floor(pieceNum / cols) * imgPieceHeight;
+  // 画像をキャンバスいっぱいにアスペクト比維持で描画
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const imgRatio = img.width / img.height;
+  const canvasRatio = cw / ch;
 
-    let dx = imgDrawX + (i % cols) * (imgDrawWidth / cols);
-    let dy = imgDrawY + Math.floor(i / cols) * (imgDrawHeight / rows);
-
-    const drawPieceWidth = imgDrawWidth / cols;
-    const drawPieceHeight = imgDrawHeight / rows;
-
-    ctx.drawImage(img, sx, sy, imgPieceWidth, imgPieceHeight, dx, dy, drawPieceWidth, drawPieceHeight);
-
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(dx, dy, drawPieceWidth, drawPieceHeight);
-
-    if(i === selectedIndex) {
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(dx + 2, dy + 2, drawPieceWidth - 4, drawPieceHeight - 4);
-    }
-  }
-}
-
-function canSwap(index) {
-  const emptyRow = Math.floor(emptyIndex / cols);
-  const emptyCol = emptyIndex % cols;
-  const idxRow = Math.floor(index / cols);
-  const idxCol = index % cols;
-  const dist = Math.abs(emptyRow - idxRow) + Math.abs(emptyCol - idxCol);
-  return dist === 1;
-}
-
-function swapPieces(i1, i2) {
-  [pieces[i1], pieces[i2]] = [pieces[i2], pieces[i1]];
-}
-
-function shufflePuzzle() {
-  let n = pieces.length - 1;
-  for(let i=n; i>0; i--) {
-    let j = Math.floor(Math.random() * i);
-    if(j === emptyIndex) j = i - 1;
-    swapPieces(i, j);
-  }
-  if(isSolved()) shufflePuzzle();
-  drawPuzzle();
-  clearMessage();
-}
-
-function isSolved() {
-  for(let i=0; i<pieces.length; i++) {
-    if(pieces[i] !== i) return false;
-  }
-  return true;
-}
-
-function getClickedPiece(x, y) {
-  const rect = canvas.getBoundingClientRect();
-
-  let clickX = x - rect.left;
-  let clickY = y - rect.top;
-
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-
-  clickX *= scaleX;
-  clickY *= scaleY;
-
-  if(clickX < imgDrawX || clickX > imgDrawX + imgDrawWidth ||
-     clickY < imgDrawY || clickY > imgDrawY + imgDrawHeight) {
-    return null;
-  }
-
-  const relativeX = clickX - imgDrawX;
-  const relativeY = clickY - imgDrawY;
-
-  const pieceWidthCanvas = imgDrawWidth / cols;
-  const pieceHeightCanvas = imgDrawHeight / rows;
-
-  const col = Math.floor(relativeX / pieceWidthCanvas);
-  const row = Math.floor(relativeY / pieceHeightCanvas);
-
-  return row * cols + col;
-}
-
-canvas.addEventListener('click', (e) => {
-  if(!img.src) return;
-  const index = getClickedPiece(e.clientX, e.clientY);
-  if(index === null) return;
-
-  if(index === emptyIndex) {
-    if(selectedIndex !== null && canSwap(selectedIndex)) {
-      swapPieces(selectedIndex, emptyIndex);
-      emptyIndex = selectedIndex;
-      selectedIndex = null;
-      drawPuzzle();
-      if(isSolved()) showMessage('完成！おめでとうございます！');
-    }
+  let drawWidth, drawHeight, offsetX, offsetY;
+  if(imgRatio > canvasRatio){
+    drawWidth = cw;
+    drawHeight = cw / imgRatio;
+    offsetX = 0;
+    offsetY = (ch - drawHeight) / 2;
   } else {
-    if(selectedIndex === index) {
-      selectedIndex = null;
-    } else {
-      selectedIndex = index;
-    }
-    drawPuzzle();
+    drawHeight = ch;
+    drawWidth = ch * imgRatio;
+    offsetX = (cw - drawWidth) / 2;
+    offsetY = 0;
   }
+
+  ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+  // 選択範囲の描画
+  if(selection) {
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(255,0,0,0.3)';
+    ctx.fillRect(selection.x, selection.y, selection.w, selection.h);
+    ctx.strokeRect(selection.x, selection.y, selection.w, selection.h);
+  }
+}
+
+function getPointerPos(evt){
+  const rect = canvas.getBoundingClientRect();
+  let x, y;
+  if(evt.touches){
+    x = evt.touches[0].clientX - rect.left;
+    y = evt.touches[0].clientY - rect.top;
+  } else {
+    x = evt.clientX - rect.left;
+    y = evt.clientY - rect.top;
+  }
+  return {x, y};
+}
+
+function clamp(value, min, max){
+  return Math.min(Math.max(value, min), max);
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  if(!imgLoaded) return;
+  dragging = true;
+  let pos = getPointerPos(e);
+  startX = clamp(pos.x, 0, canvas.width);
+  startY = clamp(pos.y, 0, canvas.height);
+  selection = null;
+  drawImageAndSelection();
+});
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  canvas.dispatchEvent(new MouseEvent('mousedown', e));
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if(!dragging) return;
+  let pos = getPointerPos(e);
+  endX = clamp(pos.x, 0, canvas.width);
+  endY = clamp(pos.y, 0, canvas.height);
+
+  let x = Math.min(startX, endX);
+  let y = Math.min(startY, endY);
+  let w = Math.abs(endX - startX);
+  let h = Math.abs(endY - startY);
+
+  selection = {x, y, w, h};
+  drawImageAndSelection();
+});
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  canvas.dispatchEvent(new MouseEvent('mousemove', e));
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if(!dragging) return;
+  dragging = false;
+  if(selection && (selection.w < 5 || selection.h < 5)) {
+    selection = null;
+  }
+  drawImageAndSelection();
+  startGameBtn.disabled = !selection;
+});
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  canvas.dispatchEvent(new MouseEvent('mouseup', e));
 });
 
 imageLoader.addEventListener('change', (e) => {
@@ -152,37 +116,60 @@ imageLoader.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (event) => {
     img.onload = () => {
-      const canvasSize = 300;
-      canvas.width = canvasSize;
-      canvas.height = canvasSize;
-
-      const imgW = img.width;
-      const imgH = img.height;
-      const imgRatio = imgW / imgH;
-      const canvasRatio = canvas.width / canvas.height;
-
-      if(imgRatio > canvasRatio) {
-        imgDrawWidth = canvas.width;
-        imgDrawHeight = canvas.width / imgRatio;
-        imgDrawX = 0;
-        imgDrawY = (canvas.height - imgDrawHeight) / 2;
-      } else {
-        imgDrawHeight = canvas.height;
-        imgDrawWidth = canvas.height * imgRatio;
-        imgDrawY = 0;
-        imgDrawX = (canvas.width - imgDrawWidth) / 2;
-      }
-
-      imgPieceWidth = img.width / cols;
-      imgPieceHeight = img.height / rows;
-
-      initPieces();
-      drawPuzzle();
-      clearMessage();
+      imgLoaded = true;
+      selection = null;
+      startGameBtn.disabled = true;
+      drawImageAndSelection();
     };
     img.src = event.target.result;
   };
   reader.readAsDataURL(file);
 });
 
-shuffleBtn.addEventListener('cli
+resetBtn.addEventListener('click', () => {
+  selection = null;
+  startGameBtn.disabled = true;
+  drawImageAndSelection();
+});
+
+startGameBtn.addEventListener('click', () => {
+  if(!selection) return;
+
+  // トリミング範囲を元画像の座標に換算
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const imgRatio = img.width / img.height;
+  const canvasRatio = cw / ch;
+
+  let drawWidth, drawHeight, offsetX, offsetY;
+  if(imgRatio > canvasRatio){
+    drawWidth = cw;
+    drawHeight = cw / imgRatio;
+    offsetX = 0;
+    offsetY = (ch - drawHeight) / 2;
+  } else {
+    drawHeight = ch;
+    drawWidth = ch * imgRatio;
+    offsetX = (cw - drawWidth) / 2;
+    offsetY = 0;
+  }
+
+  // 選択範囲のキャンバス内座標 → 元画像内座標
+  let sx = (selection.x - offsetX) * (img.width / drawWidth);
+  let sy = (selection.y - offsetY) * (img.height / drawHeight);
+  let sw = selection.w * (img.width / drawWidth);
+  let sh = selection.h * (img.height / drawHeight);
+
+  // 切り出し画像を生成（ここでゲーム画面に渡す想定）
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = sw;
+  tempCanvas.height = sh;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  // ゲーム画面に移行（ここではconsole.logでデータURL確認）
+  const croppedDataUrl = tempCanvas.toDataURL();
+  console.log('切り出した顔画像のDataURL:', croppedDataUrl);
+
+  alert('ゲーム画面はこれから作ります。\n切り出した画像はconsole.logで確認してください。');
+});
