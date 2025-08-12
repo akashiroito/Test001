@@ -15,7 +15,6 @@ function drawImageAndSelection() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if(!imgLoaded) return;
 
-  // 画像をキャンバスいっぱいにアスペクト比維持で描画
   const cw = canvas.width;
   const ch = canvas.height;
   const imgRatio = img.width / img.height;
@@ -36,7 +35,6 @@ function drawImageAndSelection() {
 
   ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
-  // 選択範囲の描画
   if(selection) {
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 2;
@@ -116,6 +114,7 @@ imageLoader.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (event) => {
     img.onload = () => {
+      console.log('画像読み込み成功', img.width, img.height);
       imgLoaded = true;
       selection = null;
       startGameBtn.disabled = true;
@@ -135,7 +134,6 @@ resetBtn.addEventListener('click', () => {
 startGameBtn.addEventListener('click', () => {
   if(!selection) return;
 
-  // トリミング範囲を元画像の座標に換算
   const cw = canvas.width;
   const ch = canvas.height;
   const imgRatio = img.width / img.height;
@@ -154,22 +152,19 @@ startGameBtn.addEventListener('click', () => {
     offsetY = 0;
   }
 
-  // 選択範囲のキャンバス内座標 → 元画像内座標
   let sx = (selection.x - offsetX) * (img.width / drawWidth);
   let sy = (selection.y - offsetY) * (img.height / drawHeight);
   let sw = selection.w * (img.width / drawWidth);
   let sh = selection.h * (img.height / drawHeight);
 
-  // 切り出し画像を生成（ここでゲーム画面に渡す想定）
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = sw;
   tempCanvas.height = sh;
   const tempCtx = tempCanvas.getContext('2d');
   tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
-  // ゲーム画面に移行（ここではconsole.logでデータURL確認）
   const croppedDataUrl = tempCanvas.toDataURL();
   console.log('切り出した顔画像のDataURL:', croppedDataUrl);
 
-  alert('ゲーム画面はこれから作ります。\n切り出した画像はconsole.logで確認してください。');
+  alert('ゲーム画面はこれから作ります。\n切り出した画像はコンソールで確認してください。');
 });
