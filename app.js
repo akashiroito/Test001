@@ -3,6 +3,7 @@ const canvas = document.getElementById('imageCanvas');
 const ctx = canvas.getContext('2d');
 const resetBtn = document.getElementById('resetSelection');
 const startGameBtn = document.getElementById('startGame');
+const mainArea = document.getElementById('mainArea');
 
 let img = new Image();
 let imgLoaded = false;
@@ -114,7 +115,6 @@ imageLoader.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (event) => {
     img.onload = () => {
-      console.log('画像読み込み成功', img.width, img.height);
       imgLoaded = true;
       selection = null;
       startGameBtn.disabled = true;
@@ -164,7 +164,87 @@ startGameBtn.addEventListener('click', () => {
   tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
   const croppedDataUrl = tempCanvas.toDataURL();
-  console.log('切り出した顔画像のDataURL:', croppedDataUrl);
 
-  alert('ゲーム画面はこれから作ります。\n切り出した画像はコンソールで確認してください。');
+  startGame(croppedDataUrl);
 });
+
+// --- ゲーム処理部分 ---
+
+function startGame(faceDataUrl) {
+  // UIクリア
+  mainArea.innerHTML = '';
+
+  // ゲームcanvas作成
+  const gameCanvas = document.createElement('canvas');
+  gameCanvas.width = 480;
+  gameCanvas.height = 320;
+  mainArea.appendChild(gameCanvas);
+  const gctx = gameCanvas.getContext('2d');
+
+  const faceImg = new Image();
+  faceImg.src = faceDataUrl;
+
+  const player = {
+    x: 50,
+    y: 0,
+    width: 50,
+    height: 50,
+    vy: 0,
+    onGround: false,
+  };
+
+  const gravity = 0.8;
+  const groundY = 280;
+
+  let keys = {};
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+  });
+
+  gameCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if(player.onGround){
+      player.vy = -15;
+      player.onGround = false;
+    }
+  });
+
+  function gameLoop() {
+    gctx.fillStyle = '#87ceeb';
+    gctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+    gctx.fillStyle = '#654321';
+    gctx.fillRect(0, groundY, gameCanvas.width, gameCanvas.height - groundY);
+
+    player.vy += gravity;
+    player.y += player.vy;
+
+    if(player.y + player.height >= groundY){
+      player.y = groundY - player.height;
+      player.vy = 0;
+      player.onGround = true;
+    }
+
+    if(keys['Space'] && player.onGround){
+      player.vy = -15;
+      player.onGround = false;
+    }
+
+    if(faceImg.complete){
+      gctx.drawImage(faceImg, player.x, player.y, player.width, player.height);
+    } else {
+      gctx.fillStyle = 'red';
+      gctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  faceImg.onload = () => {
+    gameLoop();
+  };
+}
